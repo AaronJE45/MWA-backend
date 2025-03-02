@@ -7,13 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMIN
+  STUDENT
+}
+
 model Announcement {
   id        Int      @id @default(autoincrement())
   title     String
   content   String
   authorId  Int
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [authorId], references: [id])
 }
 
@@ -23,7 +28,7 @@ model Comment {
   authorId     Int
   discussionId Int
   createdAt    DateTime   @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime   @updatedAt
   User         User       @relation(fields: [authorId], references: [id])
   Discussion   Discussion @relation(fields: [discussionId], references: [id])
 }
@@ -34,19 +39,36 @@ model Discussion {
   content   String
   authorId  Int
   createdAt DateTime  @default(now())
-  updatedAt DateTime
+  updatedAt DateTime  @updatedAt
   Comment   Comment[]
   User      User      @relation(fields: [authorId], references: [id])
 }
 
+enum HomeworkStatus {
+  ASSIGNED
+  SUBMITTED
+  GRADED
+}
+
 model Homework {
-  id          Int      @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
   title       String
+  description String?
   url         String
-  studentId   Int
-  submittedAt DateTime @default(now())
-  updatedAt   DateTime
-  User        User     @relation(fields: [studentId], references: [id])
+  authorId    Int            // Tutor/Admin who created the homework
+  studentId   Int?           // Student who submitted the homework (nullable)
+  dueDate     DateTime
+  status      HomeworkStatus @default(ASSIGNED)
+  grade       String?
+  submittedAt DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?      // Soft delete
+  User        User           @relation("HomeworkAuthor", fields: [authorId], references: [id])
+  Student     User?          @relation("HomeworkStudent", fields: [studentId], references: [id])
+
+  @@index([authorId])
+  @@index([studentId])
+  @@index([dueDate])
 }
 
 model Resource {
@@ -56,21 +78,23 @@ model Resource {
   url       String
   authorId  Int
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [authorId], references: [id])
 }
 
 model User {
-  id           Int            @id @default(autoincrement())
-  name         String 
-  email        String         @unique
-  password     String
-  role         String         @default("student")
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime
-  Announcement Announcement[]
-  Comment      Comment[]
-  Discussion   Discussion[]
-  Homework     Homework[]
-  Resource     Resource[]
+  id                Int            @id @default(autoincrement())
+  name              String 
+  email             String         @unique
+  password          String
+  role              Role           @default(STUDENT)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  CreatedHomework   Homework[]     @relation("HomeworkAuthor")
+  SubmittedHomework Homework[]     @relation("HomeworkStudent")
+  Announcement      Announcement[]
+  Comment           Comment[]
+  Discussion        Discussion[]
+  Resource          Resource[]
 }
